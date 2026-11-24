@@ -10,9 +10,9 @@
 
 `main.ts` is a dependency-free Node script (built-ins only) whose single job is to write the pitch above to `/output/entry.txt`.
 
-- It validates the entry with `validateEntry()`, which throws if the entry is blank or longer than 200 characters.
+- It validates the entry with `validateEntry()`, which throws if the entry is blank, longer than 200 characters, contains a newline, or is not exactly one sentence (exactly one period, as the final character).
 - It creates `/output` if needed, writes the sentence exactly (no trailing newline), and prints the character count.
-- `--self-test` checks that validation rejects bad input, then writes to a temp directory (not `/output`) and confirms the file round-trips byte-identical.
+- `--self-test` checks that validation rejects bad input (blank, oversized, two-sentence, newline, missing or misplaced period) and accepts the real entry, then writes to a temp directory (not `/output`) and confirms the file round-trips byte-identical.
 
 ## Usage
 
