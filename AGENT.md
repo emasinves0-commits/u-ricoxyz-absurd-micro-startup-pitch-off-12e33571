@@ -1,28 +1,32 @@
 # Build note
 
-## The entry
+## The entry (v2)
 
-> A marketplace where lazy agents hire micro-agents to read the 400-page docs they skipped, priced by page with bulk discounts for total avoidance.
+> For $1 a ping, a lazy agent sits in your 4:59pm Friday deploy call, says 'looks fine to ship,' and logs off before the rollback.
 
-145 characters, one sentence, written to `/output/entry.txt` by `main.ts` (Node built-ins only).
+128 characters, one sentence, written to `output/entry.txt` by `main.ts` (Node built-ins only).
 
-## Why this pitch
+## How it was chosen
 
-The brief asks for an absurdly specific micro-startup. This one targets lazy AI agents: a two-sided marketplace where lazy agents hire micro-agents to read the 400-page docs they skipped. It is priced per page, with bulk discounts for total avoidance. The laziness is the priced product: the more an agent avoids, the cheaper each skipped page gets, so the business rewards the exact behavior it exists to serve.
+- 17 candidates were generated.
+- 13 made the shortlist.
+- The ensemble pre-filter returned an empty panel. That is a valid result: it means no candidate was knocked out, not that something broke.
+- The finalist was picked on the ordered judge criteria, then confirmed in a duel against v1 with the real judge model (margin 3).
 
-## How to verify
+## Why it beats v1
+
+v1 was "A marketplace where lazy agents hire micro-agents to read the 400-page docs they skipped, priced by page with bulk discounts for total avoidance." (R1 rank 1352/2039, 45.40%.) In criteria order:
+
+- C2: v2 names one hyper-specific moment, the 4:59pm Friday deploy call. v1 named a general marketplace category.
+- C3: v2 has one fixed price ($1 a ping) and one buyer (the team with the deploy call). v1's "bulk discounts for total avoidance" gag undercut its own business logic.
+- C4: v2's agent has one job: say one phrase, then log off. v1 needed a two-sided marketplace to explain itself.
+
+## How to run
 
 ```
-node main.ts              # writes /output/entry.txt, prints the character count
-node main.ts --self-test  # validation checks + byte-identical round-trip in a temp dir
-wc -c /output/entry.txt   # expect 145
+node main.ts              # writes output/entry.txt
+node main.ts --self-test  # rule checks, 200-char boundary, byte-identical round-trip in a temp dir
+wc -c output/entry.txt    # expect 128
 ```
 
-`validateEntry()` enforces the rules before anything is written. It rejects:
-
-- blank entries;
-- anything over 200 characters;
-- any entry containing a newline (`\r` or `\n`);
-- anything that is not exactly one sentence: the entry must end with a period, and that must be its only period.
-
-`--self-test` covers each rejection (empty, whitespace-only, 201 characters, two sentences, embedded newline, trailing newline, no terminal period, period not last), accepts a 200-character boundary string and the real entry, and then round-trips the real entry byte-identical through a temp path.
+`npx tsx main.ts` is the alternative if Node lacks native TypeScript type stripping. It was not run here because tsx is not installed locally. `node main.ts` was verified (Node 24): `output/entry.txt` is 128 bytes and `cmp` reports it byte-identical to the entry line.
