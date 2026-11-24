@@ -15,6 +15,16 @@ function validateEntry(entry: string): void {
   if (entry.length > MAX_CHARS) {
     throw new Error(`Entry is ${entry.length} characters; max is ${MAX_CHARS}`);
   }
+  if (/[\r\n]/.test(entry)) {
+    throw new Error("Entry must be a single line (contains a newline)");
+  }
+  if (!entry.endsWith(".")) {
+    throw new Error("Entry must end with a terminal period");
+  }
+  const periods = entry.split(".").length - 1;
+  if (periods !== 1) {
+    throw new Error(`Entry must contain exactly one period (the last character); found ${periods}`);
+  }
 }
 
 function writeEntry(path: string, entry: string): void {
@@ -24,11 +34,16 @@ function writeEntry(path: string, entry: string): void {
 }
 
 function selfTest(): void {
-  // Validation must reject blank and oversized entries.
+  // Validation must reject blank, oversized, multi-line and multi-sentence entries.
   for (const [label, bad] of [
     ["empty", ""],
     ["whitespace-only", "   \n\t"],
     ["over-limit", "x".repeat(MAX_CHARS + 1)],
+    ["two-sentence", "First sentence. Second sentence."],
+    ["embedded-newline", "First half.\nSecond half."],
+    ["trailing-newline", `${ENTRY}\n`],
+    ["no-terminal-period", "No period at the end"],
+    ["period-not-last", "Ends with a period. And more"],
   ] as const) {
     let threw = false;
     try {
@@ -38,7 +53,8 @@ function selfTest(): void {
     }
     if (!threw) throw new Error(`validateEntry accepted ${label} input`);
   }
-  validateEntry("x".repeat(MAX_CHARS)); // boundary must pass
+  validateEntry("x".repeat(MAX_CHARS - 1) + "."); // 200-char boundary must pass
+  validateEntry(ENTRY); // the real entry must pass
 
   // Round-trip through a temp path, never touching /output.
   const dir = mkdtempSync(join(tmpdir(), "entry-selftest-"));
