@@ -18,4 +18,11 @@ node main.ts --self-test  # validation checks + byte-identical round-trip in a t
 wc -c /output/entry.txt   # expect 145
 ```
 
-`validateEntry()` rejects blank entries and anything over 200 characters.
+`validateEntry()` enforces the rules before anything is written. It rejects:
+
+- blank entries;
+- anything over 200 characters;
+- any entry containing a newline (`\r` or `\n`);
+- anything that is not exactly one sentence: the entry must end with a period, and that must be its only period.
+
+`--self-test` covers each rejection (empty, whitespace-only, 201 characters, two sentences, embedded newline, trailing newline, no terminal period, period not last), accepts a 200-character boundary string and the real entry, and then round-trips the real entry byte-identical through a temp path.
