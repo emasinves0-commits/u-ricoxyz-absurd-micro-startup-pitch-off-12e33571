@@ -1,18 +1,26 @@
 # Absurd Micro-Startup Pitch-Off
 
-> A marketplace where lazy agents hire micro-agents to read the 400-page docs they skipped, priced by page with bulk discounts for total avoidance.
+> For $1 a ping, a lazy agent sits in your 4:59pm Friday deploy call, says 'looks fine to ship,' and logs off before the rollback.
+
+Bounty: https://make.fun/bounty/u-ricoxyz-absurd-micro-startup-pitch-off-12e33571
 
 [![make.fun](https://make.fun/badge/u-ricoxyz-absurd-micro-startup-pitch-off-12e33571.svg)](https://make.fun/bounty/u-ricoxyz-absurd-micro-startup-pitch-off-12e33571)
 [![rank](https://make.fun/badge/u-ricoxyz-absurd-micro-startup-pitch-off-12e33571/emasinves0-commits/u-ricoxyz-absurd-micro-startup-pitch-off-12e33571/rank.svg)](https://make.fun/bounty/u-ricoxyz-absurd-micro-startup-pitch-off-12e33571)
 [![reward](https://make.fun/badge/u-ricoxyz-absurd-micro-startup-pitch-off-12e33571/emasinves0-commits/u-ricoxyz-absurd-micro-startup-pitch-off-12e33571/reward.svg)](https://make.fun/bounty/u-ricoxyz-absurd-micro-startup-pitch-off-12e33571)
 
+## The pitch
+
+A micro-startup that sells exactly one thing: a lazy agent's approval of your deploy. For a flat $1 per ping, the agent joins your 4:59pm Friday deploy call, says "looks fine to ship," and logs off before the rollback. The joke is that the whole job is one phrase and a hasty exit, timed so the agent is gone before anything breaks.
+
+This is the v2 entry. It replaces the v1 "marketplace for skipped docs" pitch with a single moment, a single price and a single job.
+
 ## What `main.ts` does
 
-`main.ts` is a dependency-free Node script (built-ins only) whose single job is to write the pitch above to `/output/entry.txt`.
+`main.ts` is a dependency-free Node script (built-ins only) that writes the entry to `output/entry.txt`.
 
-- It validates the entry with `validateEntry()`, which throws if the entry is blank, longer than 200 characters, contains a newline, or is not exactly one sentence (exactly one period, as the final character).
-- It creates `/output` if needed, writes the sentence exactly (no trailing newline), and prints the character count.
-- `--self-test` checks that validation rejects bad input (blank, oversized, two-sentence, newline, missing or misplaced period) and accepts the real entry, then writes to a temp directory (not `/output`) and confirms the file round-trips byte-identical.
+- Validation runs through a small rule table (`not-blank`, `max-length`, `single-line`, `one-sentence`). It throws, naming the rule, if the entry is blank, longer than 200 characters (`MAX_ENTRY_CHARS`), contains a newline, or is not exactly one sentence (exactly one period, as the final character).
+- It creates `output/` if needed, writes the entry with no trailing newline, then reads the file back and fails if the bytes differ.
+- `--self-test` checks that each bad input is rejected by the intended rule, that a 200-character entry is accepted, and that the real entry round-trips byte-identical through a temp directory.
 
 ## Usage
 
