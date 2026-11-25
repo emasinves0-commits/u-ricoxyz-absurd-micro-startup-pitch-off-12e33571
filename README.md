@@ -1,6 +1,6 @@
 # Absurd Micro-Startup Pitch-Off
 
-> For $1 a ping, a lazy agent sits in your 4:59pm Friday deploy call, says 'looks fine to ship,' and logs off before the rollback.
+> For 75 cents a cert, CertNinja logs in at 1:47am on Christmas Eve, renews the TLS certificate everyone forgot, and emails 'done' before DevOps wakes up.
 
 Bounty: https://make.fun/bounty/u-ricoxyz-absurd-micro-startup-pitch-off-12e33571
 
@@ -10,17 +10,17 @@ Bounty: https://make.fun/bounty/u-ricoxyz-absurd-micro-startup-pitch-off-12e3357
 
 ## The pitch
 
-A micro-startup that sells exactly one thing: a lazy agent's approval of your deploy. For a flat $1 per ping, the agent joins your 4:59pm Friday deploy call, says "looks fine to ship," and logs off before the rollback. The joke is that the whole job is one phrase and a hasty exit, timed so the agent is gone before anything breaks.
+A micro-startup that sells exactly one thing: a lazy agent renewing the TLS certificate everyone forgot, at the hour nobody else wants. For 75 cents a cert, CertNinja logs in at 1:47am on Christmas Eve, renews the certificate, and emails "done" before DevOps wakes up. Named service, fixed price, named moment, real outcome (no outage) — and the agent's whole job is one login and one email.
 
-This is the v2 entry. It replaces the v1 "marketplace for skipped docs" pitch with a single moment, a single price and a single job.
+This is the v3 entry. It replaces the v2 "looks fine to ship" deploy-call pitch (R2 rank 203/2,461, 58.76%). v2 had no brand name and sold the buyer nothing but a rubber stamp; v3 keeps v2's winning formula (fixed price + hyper-specific moment + one lazy job) and adds what the R2 neighbours showed wins: a named service plus a real outcome the buyer already pays to avoid.
 
 ## What `main.ts` does
 
 `main.ts` is a dependency-free Node script (built-ins only) that writes the entry to `output/entry.txt`.
 
-- Validation runs through a small rule table (`not-blank`, `max-length`, `single-line`, `one-sentence`). It throws, naming the rule, if the entry is blank, longer than 200 characters (`MAX_ENTRY_CHARS`), contains a newline, or is not exactly one sentence (exactly one period, as the final character).
+- Validation runs through four named checks (`not-blank`, `length`, `single-line`, `one-sentence`), in that order. It throws, naming the check, if the entry is blank, longer than 200 characters (`MAX_CHARS`), contains a newline, or is not exactly one sentence (exactly one period, as the final character).
 - It creates `output/` if needed, writes the entry with no trailing newline, then reads the file back and fails if the bytes differ.
-- `--self-test` checks that each bad input is rejected by the intended rule, that a 200-character entry is accepted, and that the real entry round-trips byte-identical through a temp directory.
+- `--self-test` checks that each bad input is rejected by the intended check, that a 200-character entry is accepted, and that the real entry round-trips byte-identical through a temp directory.
 
 ## Usage
 
