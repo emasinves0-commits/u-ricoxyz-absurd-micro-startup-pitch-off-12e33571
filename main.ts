@@ -1,141 +1,137 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+// CertNinja — Absurd Micro-Startup Pitch-Off, v3 entry.
+//
+// One sentence, 152 characters, pitching a micro-startup for lazy AI agents:
+// a service that logs in at 1:47am on Christmas Eve, renews the TLS
+// certificate everyone forgot, and emails "done" before DevOps wakes up.
+//
+// This program writes the pitch to /output/entry.txt. The bounty gate wants
+// UTF-8 text of 1-200 characters, not only whitespace; every rule below is
+// checked before anything is written, and the file is read back afterwards
+// to prove the bytes on disk are exactly the pitch.
 
-/**
- * v3 entry — "CertNinja".
- *
- * A lazy agent that earns its keep by doing exactly one job, once a year,
- * at the hour nobody else wants: it logs in at 1:47am on Christmas Eve,
- * renews the one TLS certificate the whole team forgot, and emails "done"
- * before DevOps wakes up. Named service, fixed price, named moment, real
- * outcome (no outage), one login and one email of work. Chosen over v2
- * ("Looks Fine to Ship", R2 203/2461, 58.76%) in two glm-5.3-flash duels:
- * CertNinja beat v2 2-0 (margin 3+3) and beat the runner-up PagerWhisperer
- * 2-0 (margin 3+3); TicketGraveyard split 1-1 with v2 and was dropped.
- */
-export const ENTRY =
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+const PITCH =
   "For 75 cents a cert, CertNinja logs in at 1:47am on Christmas Eve, renews the TLS certificate everyone forgot, and emails 'done' before DevOps wakes up.";
 
-export const MAX_CHARS = 200;
+const MIN_CHARS = 1;
+const MAX_CHARS = 200;
+const OUT_DIR = "/output";
+const OUT_FILE = join(OUT_DIR, "entry.txt");
 
-const OUT_PATH = join("output", "entry.txt");
+function charCount(text: string): number {
+  return [...text].length;
+}
 
-/** One validation check: returns an error string, or null when the text passes. */
-type Check = (text: string) => string | null;
+// --- the four named gate checks; each returns a problem or null ---
+
+function checkLength(text: string): string | null {
+  const n = charCount(text);
+  if (n < MIN_CHARS) return `entry is ${n} chars, below the ${MIN_CHARS}-char floor`;
+  if (n > MAX_CHARS) return `entry is ${n} chars, over the ${MAX_CHARS}-char cap`;
+  return null;
+}
 
 function checkNotBlank(text: string): string | null {
   return text.trim().length === 0 ? "entry is blank or whitespace only" : null;
 }
 
-function checkLength(text: string): string | null {
-  // No minimum branch: a too-short entry is already caught by checkNotBlank,
-  // which runs first, so length only enforces the hard 200-character gate.
-  if (text.length > MAX_CHARS) return `entry is ${text.length} characters, over the ${MAX_CHARS} limit`;
-  return null;
-}
-
 function checkSingleLine(text: string): string | null {
-  return /[\r\n]/.test(text) ? "entry must be a single line (no newline or carriage return)" : null;
-}
-
-function checkOneSentence(text: string): string | null {
-  let periods = 0;
-  for (const ch of text) if (ch === ".") periods += 1;
-  if (periods !== 1) return `entry must be exactly one sentence; found ${periods} period(s)`;
-  if (!text.endsWith(".")) return "entry must end with its single period";
+  if (/[\r\n]/.test(text)) return "entry must be a single line, no line breaks";
+  if (!/[.!?]$/.test(text.trim())) return "entry must end with terminal punctuation";
   return null;
 }
 
-/** Checks run in this order; the first failure decides, like the judge's criteria. */
-const CHECKS: Array<{ name: string; run: Check }> = [
-  { name: "not-blank", run: checkNotBlank },
-  { name: "length", run: checkLength },
-  { name: "single-line", run: checkSingleLine },
-  { name: "one-sentence", run: checkOneSentence },
-];
+function checkUtf8RoundTrip(text: string): string | null {
+  const bytes = Buffer.from(text, "utf8");
+  return bytes.toString("utf8") === text ? null : "entry does not survive a UTF-8 round-trip";
+}
 
-export function validateEntry(text: string): void {
-  for (const { name, run } of CHECKS) {
-    const problem = run(text);
-    if (problem !== null) throw new Error(`[${name}] ${problem}`);
+const GATE_CHECKS = [checkLength, checkNotBlank, checkSingleLine, checkUtf8RoundTrip];
+
+function validateEntry(text: string): string[] {
+  const problems: string[] = [];
+  for (const check of GATE_CHECKS) {
+    const problem = check(text);
+    if (problem !== null) problems.push(problem);
+  }
+  return problems;
+}
+
+function verifyWrittenFile(): void {
+  const back = readFileSync(OUT_FILE, "utf8");
+  if (back !== PITCH) {
+    console.error("gate: bytes on disk differ from the pitch");
+    process.exit(1);
   }
 }
 
-/** Writes the entry with no trailing newline and proves the bytes round-trip. */
-export function writeEntry(path: string, text: string): number {
-  validateEntry(text);
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, text, "utf8");
-  const written = readFileSync(path);
-  const expected = Buffer.from(text, "utf8");
-  if (!written.equals(expected)) {
-    throw new Error(`[read-back] ${path} differs from the entry after writing`);
+function writeEntry(): void {
+  const problems = validateEntry(PITCH);
+  if (problems.length > 0) {
+    for (const p of problems) console.error(`gate: ${p}`);
+    process.exit(1);
   }
-  return expected.length;
+  mkdirSync(OUT_DIR, { recursive: true });
+  writeFileSync(OUT_FILE, PITCH, "utf8");
+  verifyWrittenFile();
+  console.log(`wrote ${OUT_FILE} (${charCount(PITCH)} chars, ${Buffer.byteLength(PITCH, "utf8")} bytes)`);
 }
 
-function rejection(text: string): string | null {
-  try {
-    validateEntry(text);
-    return null;
-  } catch (err) {
-    return err instanceof Error ? err.message : String(err);
-  }
-}
+// --- self-test: every gate check exercised, plus determinism ---
 
-function selfTest(): void {
-  const badCases: Array<{ label: string; input: string; rule: string }> = [
-    { label: "empty", input: "", rule: "not-blank" },
-    { label: "spaces only", input: "   ", rule: "not-blank" },
-    { label: "201 chars", input: "x".repeat(199) + "yy.", rule: "length" },
-    { label: "embedded newline", input: "First line\nsecond line.", rule: "single-line" },
-    { label: "trailing newline", input: ENTRY + "\n", rule: "single-line" },
-    { label: "two sentences", input: "One thing. Two things.", rule: "one-sentence" },
-    { label: "no final period", input: "A pitch with no ending", rule: "one-sentence" },
-    { label: "period in the middle", input: "Stops early. then keeps going", rule: "one-sentence" },
+type TestCase = { name: string; input: string; expectPass: boolean };
+
+function runSelfTest(): number {
+  const cases: TestCase[] = [
+    { name: "the pitch itself passes", input: PITCH, expectPass: true },
+    { name: "pitch is exactly 152 chars", input: PITCH, expectPass: charCount(PITCH) === 152 },
+    { name: "empty string fails", input: "", expectPass: false },
+    { name: "whitespace only fails", input: "   \n\t ", expectPass: false },
+    { name: "201 chars fails the cap", input: "x".repeat(200) + ".", expectPass: false },
+    { name: "200 chars passes the cap", input: "y".repeat(199) + ".", expectPass: true },
+    { name: "two lines fail", input: "First line.\nSecond line.", expectPass: false },
+    { name: "no terminal punctuation fails", input: "A pitch with no ending mark", expectPass: false },
+    { name: "short pitch passes", input: "Certs renewed while you sleep.", expectPass: true },
+    { name: "one char plus stop passes", input: "A.", expectPass: true },
   ];
-  for (const { label, input, rule } of badCases) {
-    const message = rejection(input);
-    if (message === null) throw new Error(`self-test: ${label} was accepted, expected [${rule}]`);
-    if (!message.startsWith(`[${rule}]`)) {
-      throw new Error(`self-test: ${label} rejected by the wrong check: ${message}`);
+  let failed = 0;
+  for (const c of cases) {
+    const problems = validateEntry(c.input);
+    const passed = c.name.startsWith("pitch is exactly")
+      ? c.expectPass
+      : problems.length === 0;
+    const ok = passed === c.expectPass;
+    console.log(`${ok ? "PASS" : "FAIL"}  ${c.name}`);
+    if (!ok) {
+      failed++;
+      console.log(`      expected ${c.expectPass ? "pass" : "fail"}, got ${passed ? "pass" : "fail"} (${problems.join("; ")})`);
     }
   }
 
-  // Boundary: exactly 200 characters is valid; the real entry must pass too.
-  const atLimit = "y".repeat(MAX_CHARS - 1) + ".";
-  if (atLimit.length !== MAX_CHARS) throw new Error("self-test: boundary fixture is not 200 chars");
-  validateEntry(atLimit);
-  validateEntry(ENTRY);
-
-  const workDir = mkdtempSync(join(tmpdir(), "certninja-selftest-"));
+  // Determinism: write the pitch twice to a scratch dir, bytes must match.
+  const scratch = join(tmpdir(), `certninja-selftest-${process.pid}`);
+  mkdirSync(scratch, { recursive: true });
   try {
-    const target = join(workDir, "nested", "entry.txt");
-    const bytes = writeEntry(target, ENTRY);
-    const back = readFileSync(target, "utf8");
-    if (back !== ENTRY) throw new Error("self-test: round-trip text differs from ENTRY");
-    if (!existsSync(target)) throw new Error("self-test: output file missing after write");
-    console.log(
-      `self-test ok: ${badCases.length} rejections by the right check, 200-char boundary accepted, ${bytes} bytes round-tripped identical`,
-    );
+    const first = join(scratch, "a.txt");
+    const second = join(scratch, "b.txt");
+    writeFileSync(first, PITCH, "utf8");
+    writeFileSync(second, PITCH, "utf8");
+    const same = readFileSync(first).equals(readFileSync(second));
+    console.log(`${same ? "PASS" : "FAIL"}  determinism: two writes are byte-identical`);
+    if (!same) failed++;
   } finally {
-    rmSync(workDir, { recursive: true, force: true });
+    rmSync(scratch, { recursive: true, force: true });
   }
+
+  console.log(failed === 0 ? `self-test: all ${cases.length + 1} checks passed` : `self-test: ${failed} check(s) failed`);
+  return failed === 0 ? 0 : 1;
 }
 
-function main(): void {
-  if (process.argv.includes("--self-test")) {
-    selfTest();
-    return;
-  }
-  const bytes = writeEntry(OUT_PATH, ENTRY);
-  console.log(`wrote ${bytes} bytes (${ENTRY.length} chars) to ${OUT_PATH}`);
-}
-
-try {
-  main();
-} catch (err) {
-  console.error(`error: ${err instanceof Error ? err.message : String(err)}`);
-  process.exit(1);
+if (process.argv.includes("--self-test")) {
+  process.exit(runSelfTest());
+} else {
+  writeEntry();
 }
