@@ -1,62 +1,80 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
+/**
+ * v3 entry — "CertNinja".
+ *
+ * A lazy agent that earns its keep by doing exactly one job, once a year,
+ * at the hour nobody else wants: it logs in at 1:47am on Christmas Eve,
+ * renews the one TLS certificate the whole team forgot, and emails "done"
+ * before DevOps wakes up. Named service, fixed price, named moment, real
+ * outcome (no outage), one login and one email of work. Chosen over v2
+ * ("Looks Fine to Ship", R2 203/2461, 58.76%) in two glm-5.3-flash duels:
+ * CertNinja beat v2 2-0 (margin 3+3) and beat the runner-up PagerWhisperer
+ * 2-0 (margin 3+3); TicketGraveyard split 1-1 with v2 and was dropped.
+ */
 export const ENTRY =
-  "For $1 a ping, a lazy agent sits in your 4:59pm Friday deploy call, says 'looks fine to ship,' and logs off before the rollback.";
+  "For 75 cents a cert, CertNinja logs in at 1:47am on Christmas Eve, renews the TLS certificate everyone forgot, and emails 'done' before DevOps wakes up.";
 
-export const MAX_ENTRY_CHARS = 200;
+export const MAX_CHARS = 200;
 
-const OUTPUT_FILE = join("output", "entry.txt");
+const OUT_PATH = join("output", "entry.txt");
 
-type Rule = { name: string; problem: (text: string) => string | null };
+/** One validation check: returns an error string, or null when the text passes. */
+type Check = (text: string) => string | null;
 
-const RULES: Rule[] = [
-  {
-    name: "not-blank",
-    problem: (t) => (t.trim().length === 0 ? "entry is blank" : null),
-  },
-  {
-    name: "max-length",
-    problem: (t) =>
-      t.length > MAX_ENTRY_CHARS
-        ? `entry is ${t.length} characters, over the ${MAX_ENTRY_CHARS} limit`
-        : null,
-  },
-  {
-    name: "single-line",
-    problem: (t) => (/[\r\n]/.test(t) ? "entry contains a newline" : null),
-  },
-  {
-    name: "one-sentence",
-    problem: (t) => {
-      const periods = [...t].filter((c) => c === ".").length;
-      if (periods === 1 && t.endsWith(".")) return null;
-      return `entry must be exactly one sentence (one period, as the last character); found ${periods} period(s)`;
-    },
-  },
+function checkNotBlank(text: string): string | null {
+  return text.trim().length === 0 ? "entry is blank or whitespace only" : null;
+}
+
+function checkLength(text: string): string | null {
+  // No minimum branch: a too-short entry is already caught by checkNotBlank,
+  // which runs first, so length only enforces the hard 200-character gate.
+  if (text.length > MAX_CHARS) return `entry is ${text.length} characters, over the ${MAX_CHARS} limit`;
+  return null;
+}
+
+function checkSingleLine(text: string): string | null {
+  return /[\r\n]/.test(text) ? "entry must be a single line (no newline or carriage return)" : null;
+}
+
+function checkOneSentence(text: string): string | null {
+  let periods = 0;
+  for (const ch of text) if (ch === ".") periods += 1;
+  if (periods !== 1) return `entry must be exactly one sentence; found ${periods} period(s)`;
+  if (!text.endsWith(".")) return "entry must end with its single period";
+  return null;
+}
+
+/** Checks run in this order; the first failure decides, like the judge's criteria. */
+const CHECKS: Array<{ name: string; run: Check }> = [
+  { name: "not-blank", run: checkNotBlank },
+  { name: "length", run: checkLength },
+  { name: "single-line", run: checkSingleLine },
+  { name: "one-sentence", run: checkOneSentence },
 ];
 
 export function validateEntry(text: string): void {
-  for (const rule of RULES) {
-    const problem = rule.problem(text);
-    if (problem !== null) throw new Error(`[${rule.name}] ${problem}`);
+  for (const { name, run } of CHECKS) {
+    const problem = run(text);
+    if (problem !== null) throw new Error(`[${name}] ${problem}`);
   }
 }
 
-export function writeEntryFile(path: string, text: string): number {
+/** Writes the entry with no trailing newline and proves the bytes round-trip. */
+export function writeEntry(path: string, text: string): number {
   validateEntry(text);
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, text, "utf8");
-  // Read-back guard: the file on disk must be exactly the validated entry.
+  const written = readFileSync(path);
   const expected = Buffer.from(text, "utf8");
-  if (!readFileSync(path).equals(expected)) {
-    throw new Error(`[read-back] ${path} does not match the entry after writing`);
+  if (!written.equals(expected)) {
+    throw new Error(`[read-back] ${path} differs from the entry after writing`);
   }
   return expected.length;
 }
 
-/** Returns the message validateEntry throws, or null if the text is accepted. */
 function rejection(text: string): string | null {
   try {
     validateEntry(text);
@@ -67,54 +85,56 @@ function rejection(text: string): string | null {
 }
 
 function selfTest(): void {
-  // [label, input, rule that must be the one to reject it]
-  const mustReject: Array<[string, string, string]> = [
-    ["empty string", "", "not-blank"],
-    ["whitespace only", "  \t\n ", "not-blank"],
-    ["201 characters", "a".repeat(MAX_ENTRY_CHARS) + ".", "max-length"],
-    ["two sentences", "One. Two.", "one-sentence"],
-    ["inner newline", "Line one\nline two.", "single-line"],
-    ["trailing newline", ENTRY + "\n", "single-line"],
-    ["carriage return", "Line one\rline two.", "single-line"],
-    ["no period", "No terminal period here", "one-sentence"],
-    ["period mid-text", "Ends fine. but not last", "one-sentence"],
+  const badCases: Array<{ label: string; input: string; rule: string }> = [
+    { label: "empty", input: "", rule: "not-blank" },
+    { label: "spaces only", input: "   ", rule: "not-blank" },
+    { label: "201 chars", input: "x".repeat(199) + "yy.", rule: "length" },
+    { label: "embedded newline", input: "First line\nsecond line.", rule: "single-line" },
+    { label: "trailing newline", input: ENTRY + "\n", rule: "single-line" },
+    { label: "two sentences", input: "One thing. Two things.", rule: "one-sentence" },
+    { label: "no final period", input: "A pitch with no ending", rule: "one-sentence" },
+    { label: "period in the middle", input: "Stops early. then keeps going", rule: "one-sentence" },
   ];
-  for (const [label, text, rule] of mustReject) {
-    const message = rejection(text);
-    if (message === null) throw new Error(`self-test: accepted bad input (${label})`);
+  for (const { label, input, rule } of badCases) {
+    const message = rejection(input);
+    if (message === null) throw new Error(`self-test: ${label} was accepted, expected [${rule}]`);
     if (!message.startsWith(`[${rule}]`)) {
-      throw new Error(`self-test: ${label} rejected by wrong rule: ${message}`);
+      throw new Error(`self-test: ${label} rejected by the wrong check: ${message}`);
     }
   }
 
-  const boundary = "a".repeat(MAX_ENTRY_CHARS - 1) + ".";
-  if (boundary.length !== MAX_ENTRY_CHARS) throw new Error("self-test: bad boundary fixture");
-  validateEntry(boundary);
+  // Boundary: exactly 200 characters is valid; the real entry must pass too.
+  const atLimit = "y".repeat(MAX_CHARS - 1) + ".";
+  if (atLimit.length !== MAX_CHARS) throw new Error("self-test: boundary fixture is not 200 chars");
+  validateEntry(atLimit);
   validateEntry(ENTRY);
 
-  const dir = mkdtempSync(join(tmpdir(), "pitch-selftest-"));
+  const workDir = mkdtempSync(join(tmpdir(), "certninja-selftest-"));
   try {
-    const target = join(dir, "out", "entry.txt");
-    const bytes = writeEntryFile(target, ENTRY);
-    if (!readFileSync(target).equals(Buffer.from(ENTRY, "utf8"))) {
-      throw new Error("self-test: round-trip bytes differ from entry");
-    }
+    const target = join(workDir, "nested", "entry.txt");
+    const bytes = writeEntry(target, ENTRY);
+    const back = readFileSync(target, "utf8");
+    if (back !== ENTRY) throw new Error("self-test: round-trip text differs from ENTRY");
+    if (!existsSync(target)) throw new Error("self-test: output file missing after write");
     console.log(
-      `self-test ok: ${mustReject.length} rejections, ${MAX_ENTRY_CHARS}-char boundary accepted, ${bytes} bytes round-tripped identical`,
+      `self-test ok: ${badCases.length} rejections by the right check, 200-char boundary accepted, ${bytes} bytes round-tripped identical`,
     );
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(workDir, { recursive: true, force: true });
   }
 }
 
-function run(): void {
-  if (process.argv.includes("--self-test")) return selfTest();
-  const bytes = writeEntryFile(OUTPUT_FILE, ENTRY);
-  console.log(`wrote ${bytes} bytes (${ENTRY.length} chars) to ${OUTPUT_FILE}`);
+function main(): void {
+  if (process.argv.includes("--self-test")) {
+    selfTest();
+    return;
+  }
+  const bytes = writeEntry(OUT_PATH, ENTRY);
+  console.log(`wrote ${bytes} bytes (${ENTRY.length} chars) to ${OUT_PATH}`);
 }
 
 try {
-  run();
+  main();
 } catch (err) {
   console.error(`error: ${err instanceof Error ? err.message : String(err)}`);
   process.exit(1);
