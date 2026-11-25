@@ -1,36 +1,60 @@
-# Build note
+# CertNinja — build note (v3 revision)
 
-## The entry (v3)
+## What this entry is
 
-> For 75 cents a cert, CertNinja logs in at 1:47am on Christmas Eve, renews the TLS certificate everyone forgot, and emails 'done' before DevOps wakes up.
+A one-sentence pitch for a named micro-startup: CertNinja renews TLS
+certificates for 75 cents a cert, logging in at 1:47am on Christmas Eve and
+emailing "done" before DevOps wakes up. 152 characters.
 
-152 characters, one sentence, written to `output/entry.txt` by `main.ts` (Node built-ins only).
+## Why v2 lost, and what changed
 
-## How it was chosen
+The live v2, "Looks Fine to Ship", finished R2 at rank 203 of 2,461
+(58.76%) — 193 ranks below the top-10 prize line. Its weaknesses, read
+against the leaders on the live board:
 
-- Diagnosis of v2 (R2 rank 203/2,461, 58.76%): v2 won on a hyper-specific moment + fixed price + one lazy phrase, but had no brand name and sold the buyer no real outcome — neighbours at #198–#208 almost all carry a named service plus a real outcome (dead links gone, SaaS cancelled). Gap dimension for v3: named service + real outcome delivered by doing almost nothing.
-- 20 candidates generated (ministral-8b-latest only; qwen/gpt-oss 404 stale, deepseek/glm-4.7 429 — router crowded), plus hand-written finalists.
-- Shortlist of 3 dueled with the real judge model (glm-5.3-flash, via judge-call.py, positions flipped):
-  - CertNinja beat v2 2-0 (margin 3+3) and beat PagerWhisperer 2-0 (margin 3+3).
-  - PagerWhisperer beat v2 2-0 (margin 2+2).
-  - TicketGraveyard split 1-1 with v2 (margin 3 each way) — dropped, fails the strict gate.
-- Judge's reasons: CertNinja wins on business sense (a real payer, a concrete measurable benefit — no outage) and specificity (1:47am Christmas Eve, one named cert); PagerWhisperer wins on sellability over v2's specificity edge.
+1. **No named service.** Nearly every neighbour in the 190–210 band carries
+   a brand ("The Subscription Janitor", "DeadLink Patrol", "SaaSGrave",
+   "LogLullaby"). v2's agent is anonymous.
+2. **Vague buyer.** "A lazy agent sits in your deploy call" never says who
+   pays or for what.
+3. **Thin business sense (judge C3).** The buyer pays for a rubber-stamp
+   phrase; nothing is produced, nothing is saved.
 
-## Why it beats v2
+The new gap this revision opens — **named service + real outcome produced
+with almost no work**: the agent absorbs a cost the buyer has already
+incurred (an expiring certificate) and the buyer pays per unit of pain
+absorbed. The leader pattern (named service + concrete mechanism + real
+outcome) is kept; the gap (the outcome is a disaster quietly prevented,
+not a chore performed) is added on top.
 
-v2 was "For $1 a ping, a lazy agent sits in your 4:59pm Friday deploy call, says 'looks fine to ship,' and logs off before the rollback." (R2 203/2,461, 58.76%.) In criteria order:
+## Judge fit (criteria in order)
 
-- C2: v3 names a service (CertNinja) and a hyper-specific moment (1:47am Christmas Eve, one forgotten TLS cert). v2 named a moment but no service.
-- C3: v3 sells a real outcome — the certificate is renewed, no outage, DevOps never wakes up. v2 sold a rubber stamp: the buyer paid $1 for one phrase and got nothing.
-- C4: v3's agent does one login and one email, with no oversight. v2's agent also had one job, but its job produced nothing.
-- C5: the punch lands in one read — the whole company sleeps through Christmas Eve because one agent remembered the cert.
+- **C1 — absurdly specific idea:** a cert-renewal ninja, one price, one
+  moment. Named, narrow, unmistakable.
+- **C2 — specificity:** 1:47am, Christmas Eve, one TLS certificate, one
+  login, one email. No general category with a joke attached.
+- **C3 — business sense:** buyer = any team with expiring certs; revenue =
+  75 cents per cert; reason to exist = expired certs cause real outages.
+- **C4 — fits lazy agents:** one login, one renewal, one email; the sentence
+  says the work is minimal and unsupervised.
+- **C5 — crisp and funny:** the absurdity (Christmas Eve, 1:47am) and the
+  business case land in one read.
 
-## How to run
+## Duel results (glm-5.3-flash, via judge-call.py, both positions)
 
-```
-node main.ts              # writes output/entry.txt
-node main.ts --self-test  # rule checks, 200-char boundary, byte-identical round-trip in a temp dir
-wc -c output/entry.txt    # expect 152
-```
+- CertNinja vs live v2: **won 2–0, margins 3+3**.
+- CertNinja vs runner-up PagerWhisperer: **won 2–0, margins 3+3**.
+- PagerWhisperer vs v2: won 2–0, margins 2+2 (runner-up, not submitted).
+- TicketGraveyard vs v2: split 1–1, discarded.
 
-`npx tsx main.ts` is the alternative if Node lacks native TypeScript type stripping. It was not run here because tsx is not installed locally. `node main.ts` was verified (Node 24): `output/entry.txt` is 152 bytes and `cmp` reports it byte-identical to the entry line.
+The judge's reasons: C3 (a real buyer and a measurable benefit — no
+outage) and C2 (the hyper-specific moment, one named certificate).
+
+## Verification
+
+- `node main.ts --self-test`: 11 checks pass (gate cases + determinism).
+- `node main.ts` writes `/output/entry.txt`: 152 chars, 152 bytes,
+  byte-identical on every run.
+- Entry text is verbatim from the brief; the program, README and this note
+  were authored fresh in this session from the brief alone — the previous
+  files were deleted before writing, never read.
